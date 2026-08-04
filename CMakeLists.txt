@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(NppGrandFantasia
-    VERSION 0.5.4
+    VERSION 0.6.0
     DESCRIPTION "Ferramentas de modding do Grand Fantasia para Notepad++"
     LANGUAGES CXX RC
 )
@@ -15,6 +15,7 @@ option(NPPGF_BUILD_TESTS "Compilar os testes do validador" OFF)
 add_library(NppGrandFantasia SHARED
     src/PluginMain.cpp
     src/PipeValidator.cpp
+    src/GrandFantasiaTextColors.cpp
     src/PipeColorSettings.cpp
     src/PipeColorDialog.cpp
     src/ToolbarStatus.cpp
@@ -75,6 +76,7 @@ if (NPPGF_BUILD_TESTS)
     add_executable(NppGrandFantasiaParserTests
         tests/PipeValidatorTests.cpp
         src/PipeValidator.cpp
+        src/GrandFantasiaTextColors.cpp
     )
 
     target_include_directories(NppGrandFantasiaParserTests PRIVATE

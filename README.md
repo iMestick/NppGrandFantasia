@@ -3,6 +3,18 @@
 Plugin nativo x64 para Notepad++ destinado a ferramentas de modding e desenvolvimento do Grand Fantasia.
 
 
+## Atualizacao 0.6.0
+
+- Adicionado realce das marcacoes de cor do Grand Fantasia no formato `$1$` ate `$72$`.
+- Cada valor usa exatamente a paleta RGB fornecida pelo jogo; por exemplo, `$64$` usa `59,130,246` e `$72$` usa `250,125,125`.
+- A cor comeca no marcador e continua no texto seguinte.
+- Quando a linha abaixo nao possui outro marcador valido, ela herda a ultima cor ativa.
+- Um novo marcador valido troca a cor a partir daquele ponto, inclusive quando existem varios marcadores na mesma linha.
+- A cor e reiniciada no inicio de cada novo registro `ID|`, evitando que um item herde a cor do item anterior.
+- Pipes continuam usando as cores configuraveis e IDs validos continuam verdes.
+- Registros quebrados continuam tendo prioridade e ficam inteiros com a cor de erro configurada.
+- A implementacao usa um unico indicador Scintilla com valores RGB por faixa, evitando reservar 72 indicadores separados.
+
 ## Atualizacao 0.5.4
 
 - Removido completamente o marcador de background das linhas quebradas.
@@ -90,6 +102,39 @@ O comando **Mostrar/Ocultar Validador de Pipes** usa **Ctrl+Q** por padrao. Como
 - O painel pode ser redimensionado, movido para outro lado ou deixado flutuante pelo proprio Notepad++.
 - A interface foi reduzida para ocupar pouco espaco.
 - A validacao continua funcionando mesmo quando o painel esta oculto, permitindo manter somente os indicadores no editor.
+
+## Cores de texto `$valor$`
+
+Nos registros validos, o plugin reconhece os marcadores nativos de cor do Grand Fantasia:
+
+```ini
+$64$Mana: #24#
+$65$Nivel: #15#
+$68$Dano Fisico: #25#
+```
+
+Regras:
+
+- sao aceitos apenas valores completos entre `$1$` e `$72$`;
+- o marcador e o texto seguinte recebem a cor correspondente;
+- se a proxima linha nao possuir outro marcador, ela continua usando a cor anterior;
+- um novo `$valor$` substitui a cor ativa a partir da sua posicao;
+- marcadores invalidos, como `$0$`, `$73$` ou sem o `$` final, nao alteram a cor;
+- a cor nao atravessa o inicio de um novo registro `ID|`;
+- os caracteres `|` preservam a sequencia de cores dos pipes;
+- o ID numerico inicial preserva a cor configurada para IDs validos;
+- registros com quantidade incorreta de pipes ignoram temporariamente essas cores e usam a cor de erro.
+
+Exemplo de heranca:
+
+```ini
+$64$Esta linha usa a cor 64
+Esta linha tambem usa a cor 64
+$65$A partir daqui passa a usar a cor 65
+Esta linha continua com a cor 65
+```
+
+A tabela completa esta definida em `src/GrandFantasiaTextColors.cpp`, indexada diretamente pelo numero escrito entre os caracteres `$`.
 
 ## Indicacao visual dos erros
 
@@ -180,7 +225,7 @@ Reinicie o Notepad++.
 - O texto e copiado do Scintilla na thread da interface.
 - A analise dos registros ocorre em uma thread de trabalho.
 - Somente o resultado mais recente do documento ativo e exibido.
-- A coloracao dos pipes e dos IDs validos e aplicada apenas nas linhas visiveis e atualizada durante a rolagem.
+- A coloracao dos pipes, dos IDs validos e dos textos `$valor$` e aplicada apenas nas linhas visiveis e atualizada durante a rolagem.
 - Documentos acima de 512 MB sao ignorados para evitar consumo excessivo de memoria.
 
 ## Estrutura
@@ -196,6 +241,7 @@ NppGrandFantasia/
 `-- src/
     |-- PluginMain.cpp
     |-- PipeValidator.cpp/.h
+    |-- GrandFantasiaTextColors.cpp/.h
     |-- PipeColorSettings.cpp/.h
     |-- PipeColorDialog.cpp/.h
     |-- ToolbarStatus.cpp/.h

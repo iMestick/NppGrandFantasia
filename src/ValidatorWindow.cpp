@@ -1,6 +1,7 @@
 #include "ValidatorWindow.h"
 
 #include "PipeColorDialog.h"
+#include "GrandFantasiaTextColors.h"
 #include "resource.h"
 
 #include <algorithm>
@@ -47,6 +48,152 @@ namespace NppGrandFantasia
             }
 
             return L"+" + ToWideNumber(error.actualPipes - error.expectedPipes);
+        }
+
+        bool ReadScintillaLine(
+            HWND scintilla,
+            Sci_Position documentLine,
+            std::string& line,
+            Sci_Position& lineStart)
+        {
+            const LRESULT rawLength = SendMessageW(
+                scintilla,
+                SCI_LINELENGTH,
+                static_cast<WPARAM>(documentLine),
+                0);
+            if (rawLength <= 0)
+            {
+                line.clear();
+                lineStart = static_cast<Sci_Position>(SendMessageW(
+                    scintilla,
+                    SCI_POSITIONFROMLINE,
+                    static_cast<WPARAM>(documentLine),
+                    0));
+                return lineStart >= 0;
+            }
+
+            line.assign(static_cast<std::size_t>(rawLength) + 1U, '\0');
+            const LRESULT copied = SendMessageW(
+                scintilla,
+                SCI_GETLINE,
+                static_cast<WPARAM>(documentLine),
+                reinterpret_cast<LPARAM>(line.data()));
+            if (copied < 0)
+            {
+                return false;
+            }
+
+            line.resize(static_cast<std::size_t>(copied));
+            lineStart = static_cast<Sci_Position>(SendMessageW(
+                scintilla,
+                SCI_POSITIONFROMLINE,
+                static_cast<WPARAM>(documentLine),
+                0));
+            return lineStart >= 0;
+        }
+
+        std::size_t GetLineContentLength(const std::string& line)
+        {
+            std::size_t length = line.size();
+            while (length > 0U && (line[length - 1U] == '\r' || line[length - 1U] == '\n'))
+            {
+                --length;
+            }
+            return length;
+        }
+
+        std::pair<std::size_t, std::size_t> GetRecordIdRange(
+            const std::string& line,
+            bool isRecordStartLine)
+        {
+            if (!isRecordStartLine)
+            {
+                return {0U, 0U};
+            }
+
+            std::size_t idStart = 0;
+            if (line.size() >= 3U &&
+                static_cast<unsigned char>(line[0]) == 0xEFU &&
+                static_cast<unsigned char>(line[1]) == 0xBBU &&
+                static_cast<unsigned char>(line[2]) == 0xBFU)
+            {
+                idStart = 3U;
+            }
+
+            std::size_t idEnd = idStart;
+            while (idEnd < line.size() &&
+                   std::isdigit(static_cast<unsigned char>(line[idEnd])) != 0)
+            {
+                ++idEnd;
+            }
+
+            if (idEnd <= idStart || idEnd >= line.size() || line[idEnd] != '|')
+            {
+                return {0U, 0U};
+            }
+
+            return {idStart, idEnd};
+        }
+
+        void FillTaggedTextRange(
+            HWND scintilla,
+            int indicator,
+            Sci_Position lineStart,
+            const std::string& line,
+            std::size_t begin,
+            std::size_t end,
+            PackedRgb color,
+            std::pair<std::size_t, std::size_t> idRange)
+        {
+            if (indicator < 0 || begin >= end || end > line.size())
+            {
+                return;
+            }
+
+            SendMessageW(
+                scintilla,
+                SCI_SETINDICATORCURRENT,
+                static_cast<WPARAM>(indicator),
+                0);
+            SendMessageW(
+                scintilla,
+                SCI_SETINDICATORVALUE,
+                static_cast<WPARAM>(SC_INDICVALUEBIT | (color & 0x00FFFFFFU)),
+                0);
+
+            std::size_t rangeStart = begin;
+            auto isReservedCharacter = [&](std::size_t index)
+            {
+                return line[index] == '|' ||
+                       (index >= idRange.first && index < idRange.second);
+            };
+
+            for (std::size_t index = begin; index < end; ++index)
+            {
+                if (!isReservedCharacter(index))
+                {
+                    continue;
+                }
+
+                if (index > rangeStart)
+                {
+                    SendMessageW(
+                        scintilla,
+                        SCI_INDICATORFILLRANGE,
+                        static_cast<WPARAM>(lineStart + static_cast<Sci_Position>(rangeStart)),
+                        static_cast<LPARAM>(index - rangeStart));
+                }
+                rangeStart = index + 1U;
+            }
+
+            if (end > rangeStart)
+            {
+                SendMessageW(
+                    scintilla,
+                    SCI_INDICATORFILLRANGE,
+                    static_cast<WPARAM>(lineStart + static_cast<Sci_Position>(rangeStart)),
+                    static_cast<LPARAM>(end - rangeStart));
+            }
         }
     }
 
@@ -330,13 +477,14 @@ namespace NppGrandFantasia
     {
         const HWND scintilla = GetCurrentScintilla();
         if (scintilla == nullptr ||
-            (_firstPipeIndicator < 0 && _validIdIndicator < 0))
+            (_taggedTextIndicator < 0 && _firstPipeIndicator < 0 && _validIdIndicator < 0))
         {
             return;
         }
 
         if (clearDocument)
         {
+            ClearTaggedTextIndicators(scintilla);
             ClearPipeIndicators(scintilla);
         }
 
@@ -354,6 +502,8 @@ namespace NppGrandFantasia
         }
 
         Sci_Position previousDocumentLine = -1;
+        Sci_Position firstDocumentLine = std::numeric_limits<Sci_Position>::max();
+        Sci_Position lastDocumentLine = -1;
         const LRESULT lastVisible = firstVisible + linesOnScreen + 1;
         auto recordIt = _currentResult.records.begin();
 
@@ -367,6 +517,8 @@ namespace NppGrandFantasia
                 continue;
             }
             previousDocumentLine = documentLine;
+            firstDocumentLine = std::min(firstDocumentLine, documentLine);
+            lastDocumentLine = std::max(lastDocumentLine, documentLine);
 
             const LRESULT rawLength = SendMessageW(
                 scintilla,
@@ -489,6 +641,11 @@ namespace NppGrandFantasia
                         static_cast<LPARAM>(idEnd - idStart));
                 }
             }
+        }
+
+        if (firstDocumentLine <= lastDocumentLine)
+        {
+            ApplyVisibleTaggedTextColors(scintilla, firstDocumentLine, lastDocumentLine);
         }
     }
 
@@ -795,6 +952,7 @@ namespace NppGrandFantasia
         }
 
         ClearBrokenTextIndicators(scintilla);
+        ClearTaggedTextIndicators(scintilla);
         _currentValidationActive = false;
         ClearPipeIndicators(scintilla);
 
@@ -832,6 +990,7 @@ namespace NppGrandFantasia
         if (scintilla != nullptr)
         {
             ClearBrokenTextIndicators(scintilla);
+            ClearTaggedTextIndicators(scintilla);
             ClearPipeIndicators(scintilla);
         }
 
@@ -1033,6 +1192,21 @@ namespace NppGrandFantasia
 
     void ValidatorWindow::AllocateEditorVisuals()
     {
+        // O indicador de textos $valor$ e alocado primeiro para que as cores
+        // especificas dos pipes, IDs e erros tenham prioridade visual.
+        if (_taggedTextIndicator < 0)
+        {
+            int taggedTextIndicator = -1;
+            if (SendMessageW(
+                    _nppData._nppHandle,
+                    NPPM_ALLOCATEINDICATOR,
+                    1,
+                    reinterpret_cast<LPARAM>(&taggedTextIndicator)) != FALSE)
+            {
+                _taggedTextIndicator = taggedTextIndicator;
+            }
+        }
+
         if (_firstPipeIndicator < 0)
         {
             int firstIndicator = -1;
@@ -1080,6 +1254,20 @@ namespace NppGrandFantasia
         if (scintilla == nullptr)
         {
             return;
+        }
+
+        if (_taggedTextIndicator >= 0)
+        {
+            SendMessageW(
+                scintilla,
+                SCI_INDICSETSTYLE,
+                static_cast<WPARAM>(_taggedTextIndicator),
+                INDIC_TEXTFORE);
+            SendMessageW(
+                scintilla,
+                SCI_INDICSETFLAGS,
+                static_cast<WPARAM>(_taggedTextIndicator),
+                SC_INDICFLAG_VALUEFORE);
         }
 
         if (_firstPipeIndicator >= 0)
@@ -1179,6 +1367,130 @@ namespace NppGrandFantasia
                 SCI_INDICATORCLEARRANGE,
                 0,
                 static_cast<LPARAM>(length));
+        }
+    }
+
+    void ValidatorWindow::ClearTaggedTextIndicators(HWND scintilla)
+    {
+        if (scintilla == nullptr || _taggedTextIndicator < 0)
+        {
+            return;
+        }
+
+        const LRESULT length = SendMessageW(scintilla, SCI_GETLENGTH, 0, 0);
+        if (length <= 0)
+        {
+            return;
+        }
+
+        SendMessageW(
+            scintilla,
+            SCI_SETINDICATORCURRENT,
+            static_cast<WPARAM>(_taggedTextIndicator),
+            0);
+        SendMessageW(
+            scintilla,
+            SCI_INDICATORCLEARRANGE,
+            0,
+            static_cast<LPARAM>(length));
+    }
+
+    void ValidatorWindow::ApplyVisibleTaggedTextColors(
+        HWND scintilla,
+        Sci_Position firstDocumentLine,
+        Sci_Position lastDocumentLine)
+    {
+        if (scintilla == nullptr || _taggedTextIndicator < 0 ||
+            firstDocumentLine < 0 || lastDocumentLine < firstDocumentLine)
+        {
+            return;
+        }
+
+        const std::size_t firstVisibleLine =
+            static_cast<std::size_t>(firstDocumentLine) + 1U;
+        const std::size_t lastVisibleLine =
+            static_cast<std::size_t>(lastDocumentLine) + 1U;
+
+        for (const PipeRecordInfo& record : _currentResult.records)
+        {
+            if (!record.IsValid() ||
+                record.endLine < firstVisibleLine ||
+                record.startLine > lastVisibleLine)
+            {
+                continue;
+            }
+
+            bool hasActiveColor = false;
+            PackedRgb activeColor = 0;
+            const std::size_t scanEndLine = std::min(record.endLine, lastVisibleLine);
+
+            // Comeca no inicio do registro para recuperar a ultima cor ativa mesmo
+            // quando a primeira linha visivel e uma continuacao sem novo $valor$.
+            for (std::size_t oneBasedLine = record.startLine;
+                 oneBasedLine <= scanEndLine;
+                 ++oneBasedLine)
+            {
+                const Sci_Position documentLine =
+                    static_cast<Sci_Position>(oneBasedLine - 1U);
+                std::string line;
+                Sci_Position lineStart = -1;
+                if (!ReadScintillaLine(scintilla, documentLine, line, lineStart))
+                {
+                    continue;
+                }
+
+                const std::size_t contentLength = GetLineContentLength(line);
+                const bool shouldPaint = oneBasedLine >= firstVisibleLine;
+                const auto idRange = GetRecordIdRange(
+                    line,
+                    oneBasedLine == record.startLine);
+
+                std::size_t segmentStart = 0;
+                std::size_t position = 0;
+                while (position < contentLength)
+                {
+                    GrandFantasiaColorTag tag{};
+                    if (!TryParseGrandFantasiaColorTag(
+                            std::string_view(line.data(), contentLength),
+                            position,
+                            tag))
+                    {
+                        ++position;
+                        continue;
+                    }
+
+                    if (hasActiveColor && shouldPaint && position > segmentStart)
+                    {
+                        FillTaggedTextRange(
+                            scintilla,
+                            _taggedTextIndicator,
+                            lineStart,
+                            line,
+                            segmentStart,
+                            position,
+                            activeColor,
+                            idRange);
+                    }
+
+                    activeColor = tag.color;
+                    hasActiveColor = true;
+                    segmentStart = position;
+                    position += tag.length;
+                }
+
+                if (hasActiveColor && shouldPaint && contentLength > segmentStart)
+                {
+                    FillTaggedTextRange(
+                        scintilla,
+                        _taggedTextIndicator,
+                        lineStart,
+                        line,
+                        segmentStart,
+                        contentLength,
+                        activeColor,
+                        idRange);
+                }
+            }
         }
     }
 

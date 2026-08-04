@@ -100,6 +100,11 @@ namespace NppGrandFantasia
         void ConfigureEditorVisuals(HWND scintilla);
         void ConfigureAllEditorVisuals();
         void ClearPipeIndicators(HWND scintilla);
+        void ClearTaggedTextIndicators(HWND scintilla);
+        void ApplyVisibleTaggedTextColors(
+            HWND scintilla,
+            Sci_Position firstDocumentLine,
+            Sci_Position lastDocumentLine);
         void ClearBrokenTextIndicators(HWND scintilla);
         void ApplyBrokenTextIndicators(HWND scintilla, const PipeValidationResult& result);
 
@@ -130,6 +135,7 @@ namespace NppGrandFantasia
         ToolbarStatus _compactToolbar{};
         PipeColorSettings _pipeColorSettings{};
         bool _settingsLoaded = false;
+        int _taggedTextIndicator = -1;
         int _firstPipeIndicator = -1;
         int _validIdIndicator = -1;
         int _brokenTextIndicator = -1;
