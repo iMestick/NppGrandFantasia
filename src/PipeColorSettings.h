@@ -16,7 +16,8 @@ namespace NppGrandFantasia
             RGB(215, 105, 255),
             RGB(95, 220, 145),
         };
-        COLORREF brokenLineBackground = RGB(255, 70, 70);
+        COLORREF validIdColor = RGB(80, 200, 120);
+        COLORREF brokenTextColor = RGB(255, 70, 70);
     };
 
     PipeColorSettings DefaultPipeColorSettings();

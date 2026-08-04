@@ -100,8 +100,8 @@ namespace NppGrandFantasia
         void ConfigureEditorVisuals(HWND scintilla);
         void ConfigureAllEditorVisuals();
         void ClearPipeIndicators(HWND scintilla);
-        void ClearBrokenLineMarkers(HWND scintilla);
-        void ApplyBrokenLineMarkers(HWND scintilla, const PipeValidationResult& result);
+        void ClearBrokenTextIndicators(HWND scintilla);
+        void ApplyBrokenTextIndicators(HWND scintilla, const PipeValidationResult& result);
 
         HWND GetCurrentScintilla() const;
         UINT_PTR GetCurrentBufferId() const;
@@ -131,6 +131,7 @@ namespace NppGrandFantasia
         PipeColorSettings _pipeColorSettings{};
         bool _settingsLoaded = false;
         int _firstPipeIndicator = -1;
-        int _brokenLineMarker = -1;
+        int _validIdIndicator = -1;
+        int _brokenTextIndicator = -1;
     };
 }

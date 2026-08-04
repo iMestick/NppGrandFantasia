@@ -15,7 +15,7 @@ BEGIN
     PUSHBUTTON      "Validar", IDC_VALIDATE_NOW, 134, 103, 40, 17
 END
 
-IDD_PIPE_COLORS DIALOGEX 0, 0, 230, 156
+IDD_PIPE_COLORS DIALOGEX 0, 0, 230, 190
 STYLE DS_SETFONT | DS_SHELLFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Cores e destaque"
 FONT 9, "Segoe UI"
@@ -27,16 +27,18 @@ BEGIN
     CONTROL         "", IDC_PIPE_COLOR_2, "Button", BS_OWNERDRAW | WS_TABSTOP, 62, 43, 49, 27
     CONTROL         "", IDC_PIPE_COLOR_3, "Button", BS_OWNERDRAW | WS_TABSTOP, 116, 43, 49, 27
     CONTROL         "", IDC_PIPE_COLOR_4, "Button", BS_OWNERDRAW | WS_TABSTOP, 173, 43, 49, 27
-    LTEXT           "Destaque de registros invalidos:", IDC_STATIC, 8, 80, 160, 10
-    CONTROL         "", IDC_BROKEN_LINE_COLOR, "Button", BS_OWNERDRAW | WS_TABSTOP, 8, 94, 214, 24
-    PUSHBUTTON      "Padrao", IDC_PIPE_COLORS_DEFAULT, 8, 128, 55, 19
-    DEFPUSHBUTTON   "OK", IDOK, 112, 128, 52, 19
-    PUSHBUTTON      "Cancelar", IDCANCEL, 170, 128, 52, 19
+    LTEXT           "Destaque dos IDs de registros validos:", IDC_STATIC, 8, 80, 190, 10
+    CONTROL         "", IDC_VALID_ID_COLOR, "Button", BS_OWNERDRAW | WS_TABSTOP, 8, 94, 214, 24
+    LTEXT           "Cor dos caracteres em registros invalidos:", IDC_STATIC, 8, 124, 214, 10
+    CONTROL         "", IDC_BROKEN_TEXT_COLOR, "Button", BS_OWNERDRAW | WS_TABSTOP, 8, 138, 214, 24
+    PUSHBUTTON      "Padrao", IDC_PIPE_COLORS_DEFAULT, 8, 164, 55, 19
+    DEFPUSHBUTTON   "OK", IDOK, 112, 164, 52, 19
+    PUSHBUTTON      "Cancelar", IDCANCEL, 170, 164, 52, 19
 END
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,5,2,0
- PRODUCTVERSION 0,5,2,0
+ FILEVERSION 0,5,4,0
+ PRODUCTVERSION 0,5,4,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -53,11 +55,11 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "ShadowGarden\0"
             VALUE "FileDescription", "NppGrandFantasia - ferramentas para Grand Fantasia\0"
-            VALUE "FileVersion", "0.5.2\0"
+            VALUE "FileVersion", "0.5.4\0"
             VALUE "InternalName", "NppGrandFantasia\0"
             VALUE "OriginalFilename", "NppGrandFantasia.dll\0"
             VALUE "ProductName", "NppGrandFantasia\0"
-            VALUE "ProductVersion", "0.5.2\0"
+            VALUE "ProductVersion", "0.5.4\0"
         END
     END
     BLOCK "VarFileInfo"

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <commctrl.h>
+#include <cctype>
 #include <cwchar>
 #include <limits>
 #include <sstream>
@@ -328,7 +329,8 @@ namespace NppGrandFantasia
     void ValidatorWindow::RefreshVisiblePipeColors(bool clearDocument)
     {
         const HWND scintilla = GetCurrentScintilla();
-        if (scintilla == nullptr || _firstPipeIndicator < 0)
+        if (scintilla == nullptr ||
+            (_firstPipeIndicator < 0 && _validIdIndicator < 0))
         {
             return;
         }
@@ -353,6 +355,7 @@ namespace NppGrandFantasia
 
         Sci_Position previousDocumentLine = -1;
         const LRESULT lastVisible = firstVisible + linesOnScreen + 1;
+        auto recordIt = _currentResult.records.begin();
 
         for (LRESULT visibleLine = firstVisible; visibleLine <= lastVisible; ++visibleLine)
         {
@@ -397,38 +400,93 @@ namespace NppGrandFantasia
                 continue;
             }
 
-            std::array<std::vector<Sci_Position>, 4> positionsByColor;
-            int pipeIndex = 0;
-            const int colorCount = _pipeColorSettings.colorCount;
-
-            for (std::size_t index = 0; index < line.size(); ++index)
+            const std::size_t oneBasedLine = static_cast<std::size_t>(documentLine) + 1U;
+            while (recordIt != _currentResult.records.end() &&
+                   recordIt->endLine < oneBasedLine)
             {
-                if (line[index] != '|')
-                {
-                    continue;
-                }
-
-                const int colorIndex = pipeIndex % colorCount;
-                positionsByColor[static_cast<std::size_t>(colorIndex)].push_back(
-                    lineStart + static_cast<Sci_Position>(index));
-                ++pipeIndex;
+                ++recordIt;
             }
 
-            for (int colorIndex = 0; colorIndex < colorCount; ++colorIndex)
-            {
-                SendMessageW(
-                    scintilla,
-                    SCI_SETINDICATORCURRENT,
-                    static_cast<WPARAM>(_firstPipeIndicator + colorIndex),
-                    0);
+            const bool belongsToRecord =
+                recordIt != _currentResult.records.end() &&
+                recordIt->startLine <= oneBasedLine &&
+                recordIt->endLine >= oneBasedLine;
+            const bool belongsToBrokenRecord =
+                belongsToRecord && !recordIt->IsValid();
 
-                for (const Sci_Position position : positionsByColor[static_cast<std::size_t>(colorIndex)])
+            // Registros quebrados usam uma unica cor para todos os caracteres.
+            // Neles nao aplicamos as cores normais de pipes nem a cor verde do ID.
+            if (!belongsToBrokenRecord && _firstPipeIndicator >= 0)
+            {
+                std::array<std::vector<Sci_Position>, 4> positionsByColor;
+                int pipeIndex = 0;
+                const int colorCount = std::clamp(_pipeColorSettings.colorCount, 1, 4);
+
+                for (std::size_t index = 0; index < line.size(); ++index)
+                {
+                    if (line[index] != '|')
+                    {
+                        continue;
+                    }
+
+                    const int colorIndex = pipeIndex % colorCount;
+                    positionsByColor[static_cast<std::size_t>(colorIndex)].push_back(
+                        lineStart + static_cast<Sci_Position>(index));
+                    ++pipeIndex;
+                }
+
+                for (int colorIndex = 0; colorIndex < colorCount; ++colorIndex)
                 {
                     SendMessageW(
                         scintilla,
+                        SCI_SETINDICATORCURRENT,
+                        static_cast<WPARAM>(_firstPipeIndicator + colorIndex),
+                        0);
+
+                    for (const Sci_Position position : positionsByColor[static_cast<std::size_t>(colorIndex)])
+                    {
+                        SendMessageW(
+                            scintilla,
+                            SCI_INDICATORFILLRANGE,
+                            static_cast<WPARAM>(position),
+                            1);
+                    }
+                }
+            }
+
+            if (!belongsToBrokenRecord &&
+                _validIdIndicator >= 0 &&
+                belongsToRecord &&
+                recordIt->startLine == oneBasedLine)
+            {
+                std::size_t idStart = 0;
+                if (line.size() >= 3U &&
+                    static_cast<unsigned char>(line[0]) == 0xEFU &&
+                    static_cast<unsigned char>(line[1]) == 0xBBU &&
+                    static_cast<unsigned char>(line[2]) == 0xBFU)
+                {
+                    idStart = 3U;
+                }
+
+                std::size_t idEnd = idStart;
+                while (idEnd < line.size() &&
+                       std::isdigit(static_cast<unsigned char>(line[idEnd])) != 0)
+                {
+                    ++idEnd;
+                }
+
+                if (idEnd > idStart && idEnd < line.size() && line[idEnd] == '|')
+                {
+                    SendMessageW(
+                        scintilla,
+                        SCI_SETINDICATORCURRENT,
+                        static_cast<WPARAM>(_validIdIndicator),
+                        0);
+                    SendMessageW(
+                        scintilla,
                         SCI_INDICATORFILLRANGE,
-                        static_cast<WPARAM>(position),
-                        1);
+                        static_cast<WPARAM>(lineStart + static_cast<Sci_Position>(idStart)),
+                        static_cast<LPARAM>(idEnd - idStart));
                 }
             }
         }
@@ -640,7 +698,7 @@ namespace NppGrandFantasia
         }
 
         AllocateEditorVisuals();
-        _compactToolbar.SetErrorColor(_pipeColorSettings.brokenLineBackground);
+        _compactToolbar.SetErrorColor(_pipeColorSettings.brokenTextColor);
         ApplyDarkMode(true);
         _worker = std::make_unique<ValidationWorker>(_dialog);
 
@@ -736,7 +794,7 @@ namespace NppGrandFantasia
             return;
         }
 
-        ClearBrokenLineMarkers(scintilla);
+        ClearBrokenTextIndicators(scintilla);
         _currentValidationActive = false;
         ClearPipeIndicators(scintilla);
 
@@ -773,7 +831,7 @@ namespace NppGrandFantasia
 
         if (scintilla != nullptr)
         {
-            ClearBrokenLineMarkers(scintilla);
+            ClearBrokenTextIndicators(scintilla);
             ClearPipeIndicators(scintilla);
         }
 
@@ -799,7 +857,7 @@ namespace NppGrandFantasia
 
         if (scintilla != nullptr)
         {
-            ApplyBrokenLineMarkers(scintilla, result);
+            ApplyBrokenTextIndicators(scintilla, result);
             RefreshVisiblePipeColors(false);
         }
 
@@ -921,7 +979,7 @@ namespace NppGrandFantasia
 
         _pipeColorSettings = updated;
         SavePipeColorSettings(_nppData._nppHandle, _pipeColorSettings);
-        _compactToolbar.SetErrorColor(_pipeColorSettings.brokenLineBackground);
+        _compactToolbar.SetErrorColor(_pipeColorSettings.brokenTextColor);
         ConfigureAllEditorVisuals();
         RefreshVisiblePipeColors(true);
         UpdateCompactStatus();
@@ -955,7 +1013,7 @@ namespace NppGrandFantasia
 
         if (created)
         {
-            _compactToolbar.SetErrorColor(_pipeColorSettings.brokenLineBackground);
+            _compactToolbar.SetErrorColor(_pipeColorSettings.brokenTextColor);
             UpdateCompactStatus();
         }
     }
@@ -988,16 +1046,29 @@ namespace NppGrandFantasia
             }
         }
 
-        if (_brokenLineMarker < 0)
+        if (_validIdIndicator < 0)
         {
-            int marker = -1;
+            int validIdIndicator = -1;
             if (SendMessageW(
                     _nppData._nppHandle,
-                    NPPM_ALLOCATEMARKER,
+                    NPPM_ALLOCATEINDICATOR,
                     1,
-                    reinterpret_cast<LPARAM>(&marker)) != FALSE)
+                    reinterpret_cast<LPARAM>(&validIdIndicator)) != FALSE)
             {
-                _brokenLineMarker = marker;
+                _validIdIndicator = validIdIndicator;
+            }
+        }
+
+        if (_brokenTextIndicator < 0)
+        {
+            int brokenTextIndicator = -1;
+            if (SendMessageW(
+                    _nppData._nppHandle,
+                    NPPM_ALLOCATEINDICATOR,
+                    1,
+                    reinterpret_cast<LPARAM>(&brokenTextIndicator)) != FALSE)
+            {
+                _brokenTextIndicator = brokenTextIndicator;
             }
         }
 
@@ -1028,33 +1099,32 @@ namespace NppGrandFantasia
             }
         }
 
-        if (_brokenLineMarker >= 0)
+        if (_validIdIndicator >= 0)
         {
             SendMessageW(
                 scintilla,
-                SCI_MARKERDEFINE,
-                static_cast<WPARAM>(_brokenLineMarker),
-                SC_MARK_BACKGROUND);
+                SCI_INDICSETSTYLE,
+                static_cast<WPARAM>(_validIdIndicator),
+                INDIC_TEXTFORE);
             SendMessageW(
                 scintilla,
-                SCI_MARKERSETFORE,
-                static_cast<WPARAM>(_brokenLineMarker),
-                static_cast<LPARAM>(_pipeColorSettings.brokenLineBackground));
+                SCI_INDICSETFORE,
+                static_cast<WPARAM>(_validIdIndicator),
+                static_cast<LPARAM>(_pipeColorSettings.validIdColor));
+        }
+
+        if (_brokenTextIndicator >= 0)
+        {
             SendMessageW(
                 scintilla,
-                SCI_MARKERSETBACK,
-                static_cast<WPARAM>(_brokenLineMarker),
-                static_cast<LPARAM>(_pipeColorSettings.brokenLineBackground));
+                SCI_INDICSETSTYLE,
+                static_cast<WPARAM>(_brokenTextIndicator),
+                INDIC_TEXTFORE);
             SendMessageW(
                 scintilla,
-                SCI_MARKERSETALPHA,
-                static_cast<WPARAM>(_brokenLineMarker),
-                82);
-            SendMessageW(
-                scintilla,
-                SCI_MARKERSETLAYER,
-                static_cast<WPARAM>(_brokenLineMarker),
-                SC_LAYER_UNDER_TEXT);
+                SCI_INDICSETFORE,
+                static_cast<WPARAM>(_brokenTextIndicator),
+                static_cast<LPARAM>(_pipeColorSettings.brokenTextColor));
         }
 
         InvalidateRect(scintilla, nullptr, FALSE);
@@ -1068,7 +1138,8 @@ namespace NppGrandFantasia
 
     void ValidatorWindow::ClearPipeIndicators(HWND scintilla)
     {
-        if (scintilla == nullptr || _firstPipeIndicator < 0)
+        if (scintilla == nullptr ||
+            (_firstPipeIndicator < 0 && _validIdIndicator < 0))
         {
             return;
         }
@@ -1079,12 +1150,29 @@ namespace NppGrandFantasia
             return;
         }
 
-        for (int index = 0; index < 4; ++index)
+        if (_firstPipeIndicator >= 0)
+        {
+            for (int index = 0; index < 4; ++index)
+            {
+                SendMessageW(
+                    scintilla,
+                    SCI_SETINDICATORCURRENT,
+                    static_cast<WPARAM>(_firstPipeIndicator + index),
+                    0);
+                SendMessageW(
+                    scintilla,
+                    SCI_INDICATORCLEARRANGE,
+                    0,
+                    static_cast<LPARAM>(length));
+            }
+        }
+
+        if (_validIdIndicator >= 0)
         {
             SendMessageW(
                 scintilla,
                 SCI_SETINDICATORCURRENT,
-                static_cast<WPARAM>(_firstPipeIndicator + index),
+                static_cast<WPARAM>(_validIdIndicator),
                 0);
             SendMessageW(
                 scintilla,
@@ -1094,37 +1182,74 @@ namespace NppGrandFantasia
         }
     }
 
-    void ValidatorWindow::ClearBrokenLineMarkers(HWND scintilla)
+    void ValidatorWindow::ClearBrokenTextIndicators(HWND scintilla)
     {
-        if (scintilla != nullptr && _brokenLineMarker >= 0)
-        {
-            SendMessageW(
-                scintilla,
-                SCI_MARKERDELETEALL,
-                static_cast<WPARAM>(_brokenLineMarker),
-                0);
-        }
-    }
-
-    void ValidatorWindow::ApplyBrokenLineMarkers(
-        HWND scintilla,
-        const PipeValidationResult& result)
-    {
-        if (scintilla == nullptr || _brokenLineMarker < 0)
+        if (scintilla == nullptr || _brokenTextIndicator < 0)
         {
             return;
         }
 
+        const LRESULT length = SendMessageW(scintilla, SCI_GETLENGTH, 0, 0);
+        if (length <= 0)
+        {
+            return;
+        }
+
+        SendMessageW(
+            scintilla,
+            SCI_SETINDICATORCURRENT,
+            static_cast<WPARAM>(_brokenTextIndicator),
+            0);
+        SendMessageW(
+            scintilla,
+            SCI_INDICATORCLEARRANGE,
+            0,
+            static_cast<LPARAM>(length));
+    }
+
+    void ValidatorWindow::ApplyBrokenTextIndicators(
+        HWND scintilla,
+        const PipeValidationResult& result)
+    {
+        if (scintilla == nullptr || _brokenTextIndicator < 0)
+        {
+            return;
+        }
+
+        SendMessageW(
+            scintilla,
+            SCI_SETINDICATORCURRENT,
+            static_cast<WPARAM>(_brokenTextIndicator),
+            0);
+
         for (const PipeRecordError& error : result.errors)
         {
-            for (std::size_t line = error.startLine; line <= error.endLine; ++line)
+            if (error.startLine == 0 || error.endLine < error.startLine)
             {
-                SendMessageW(
-                    scintilla,
-                    SCI_MARKERADD,
-                    static_cast<WPARAM>(line - 1U),
-                    static_cast<LPARAM>(_brokenLineMarker));
+                continue;
             }
+
+            const Sci_Position startPosition = static_cast<Sci_Position>(SendMessageW(
+                scintilla,
+                SCI_POSITIONFROMLINE,
+                static_cast<WPARAM>(error.startLine - 1U),
+                0));
+            const Sci_Position endPosition = static_cast<Sci_Position>(SendMessageW(
+                scintilla,
+                SCI_GETLINEENDPOSITION,
+                static_cast<WPARAM>(error.endLine - 1U),
+                0));
+
+            if (startPosition < 0 || endPosition <= startPosition)
+            {
+                continue;
+            }
+
+            SendMessageW(
+                scintilla,
+                SCI_INDICATORFILLRANGE,
+                static_cast<WPARAM>(startPosition),
+                static_cast<LPARAM>(endPosition - startPosition));
         }
     }
 

@@ -27,7 +27,8 @@ namespace NppGrandFantasia
         static void Initialize(HWND dialog, Context& context);
         static void UpdateEnabledColors(HWND dialog, const Context& context);
         static void ChoosePipeColor(HWND dialog, Context& context, int colorIndex);
-        static void ChooseBrokenLineColor(HWND dialog, Context& context);
+        static void ChooseValidIdColor(HWND dialog, Context& context);
+        static void ChooseBrokenTextColor(HWND dialog, Context& context);
         static bool ShowColorPicker(HWND dialog, COLORREF& color);
         static void DrawColorButton(
             const DRAWITEMSTRUCT& draw,

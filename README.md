@@ -3,6 +3,24 @@
 Plugin nativo x64 para Notepad++ destinado a ferramentas de modding e desenvolvimento do Grand Fantasia.
 
 
+## Atualizacao 0.5.4
+
+- Removido completamente o marcador de background das linhas quebradas.
+- Registros invalidos agora recebem uma cor de texto unica em todos os caracteres: ID, pipes e conteudo.
+- A cor padrao dos caracteres de erro e vermelha e pode ser alterada em **Cores...**.
+- Em registros quebrados, as cores normais dos pipes e o verde do ID ficam suspensos ate o erro ser corrigido.
+- Ao corrigir a quantidade de pipes, o registro volta automaticamente para as cores normais.
+- A nova configuracao e salva pela chave `BrokenTextColor`; a chave antiga `BrokenLineBackground` ainda e lida para preservar a cor ja escolhida.
+
+## Atualizacao 0.5.3
+
+- IDs numericos de registros validos agora recebem uma cor propria no editor.
+- A cor padrao dos IDs validos e verde.
+- O botao **Cores...** permite alterar a cor dos IDs validos junto das cores dos pipes e do destaque de erro.
+- Somente o numero inicial antes do primeiro pipe e colorido, por exemplo `58904` em `58904|Nome|...`.
+- Todo inicio de registro reconhecido no formato `numero|` recebe a cor configurada, inclusive quando o registro estiver com erro de pipes.
+- A configuracao e salva em `NppGrandFantasia.ini` pela chave `ValidIdColor`.
+
 ## Atualizacao 0.5.2
 
 - O indicador compacto agora mostra somente as linhas quebradas, em ordem crescente.
@@ -77,9 +95,11 @@ O comando **Mostrar/Ocultar Validador de Pipes** usa **Ctrl+Q** por padrao. Como
 
 Quando um registro possui pipes a menos ou a mais:
 
-- todas as linhas que pertencem ao registro recebem um fundo vermelho translucido;
+- todos os caracteres do registro recebem a cor de erro, incluindo ID, pipes e texto;
+- a cor padrao e vermelha e pode ser alterada em **Cores...**;
+- registros com varias linhas recebem a cor em todas as linhas envolvidas;
 - o painel mostra linha ou intervalo, ID, quantidade encontrada/esperada e diferenca;
-- o fundo e atualizado automaticamente depois das edicoes.
+- depois da correcao, o registro volta automaticamente para as cores normais.
 
 ## Cores dos pipes
 
@@ -90,9 +110,11 @@ O botao **Cores...** abre a configuracao de realce dos caracteres `|`.
 - Com 2, 3 ou 4 cores, elas sao aplicadas em sequencia e repetidas ciclicamente.
 - A sequencia reinicia em cada linha.
 - As configuracoes sao salvas em `NppGrandFantasia.ini`, na pasta de configuracao de plugins do Notepad++.
-- Na mesma janela e possivel escolher a cor do fundo dos registros quebrados.
-- O fundo de erro vem vermelho por padrao e continua translucido para manter o texto legivel.
+- Na mesma janela e possivel escolher a cor verde padrao dos IDs validos e a cor dos caracteres dos registros quebrados.
+- A cor de erro vem vermelha por padrao e substitui temporariamente as cores do ID e dos pipes no registro invalido.
 - O realce so e aplicado quando a validacao estiver ativa por cabecalho ou regra de traducao.
+- O ID valido e o numero no inicio do registro, imediatamente antes do primeiro `|`.
+- O destaque identifica todo ID reconhecido no formato `^numero|`; quando o registro esta quebrado, todos os seus caracteres usam a cor de erro configuravel.
 
 ## Informacoes mostradas
 
@@ -158,7 +180,7 @@ Reinicie o Notepad++.
 - O texto e copiado do Scintilla na thread da interface.
 - A analise dos registros ocorre em uma thread de trabalho.
 - Somente o resultado mais recente do documento ativo e exibido.
-- A coloracao dos pipes e aplicada apenas nas linhas visiveis e atualizada durante a rolagem.
+- A coloracao dos pipes e dos IDs validos e aplicada apenas nas linhas visiveis e atualizada durante a rolagem.
 - Documentos acima de 512 MB sao ignorados para evitar consumo excessivo de memoria.
 
 ## Estrutura
@@ -195,7 +217,7 @@ Regras:
 - Os registros continuam sendo identificados por `ID|` e podem ocupar mais de uma linha.
 - Texto antes do primeiro registro `ID|` e ignorado.
 - Quando o nome pertence a lista abaixo, a regra fixa de traducao tem prioridade sobre qualquer cabecalho existente.
-- O painel, o fundo configuravel, a navegacao por duplo clique e as cores dos pipes funcionam da mesma forma que nos INIs com cabecalho.
+- O painel, a cor configuravel dos registros quebrados, a navegacao por duplo clique e as cores dos pipes funcionam da mesma forma que nos INIs com cabecalho.
 
 ```text
 t_achievement.ini = 3

@@ -96,9 +96,15 @@ namespace NppGrandFantasia
                 }
             }
 
-            if (id == IDC_BROKEN_LINE_COLOR && notification == BN_CLICKED)
+            if (id == IDC_VALID_ID_COLOR && notification == BN_CLICKED)
             {
-                ChooseBrokenLineColor(dialog, *context);
+                ChooseValidIdColor(dialog, *context);
+                return TRUE;
+            }
+
+            if (id == IDC_BROKEN_TEXT_COLOR && notification == BN_CLICKED)
+            {
+                ChooseBrokenTextColor(dialog, *context);
                 return TRUE;
             }
 
@@ -113,7 +119,8 @@ namespace NppGrandFantasia
                     static_cast<WPARAM>(context->working.colorCount - 1),
                     0);
                 UpdateEnabledColors(dialog, *context);
-                InvalidateRect(GetDlgItem(dialog, IDC_BROKEN_LINE_COLOR), nullptr, TRUE);
+                InvalidateRect(GetDlgItem(dialog, IDC_VALID_ID_COLOR), nullptr, TRUE);
+                InvalidateRect(GetDlgItem(dialog, IDC_BROKEN_TEXT_COLOR), nullptr, TRUE);
                 return TRUE;
 
             case IDOK:
@@ -149,12 +156,22 @@ namespace NppGrandFantasia
                 }
             }
 
-            if (draw->CtlID == IDC_BROKEN_LINE_COLOR)
+            if (draw->CtlID == IDC_VALID_ID_COLOR)
             {
                 DrawColorButton(
                     *draw,
-                    context->working.brokenLineBackground,
-                    L"Fundo das linhas quebradas",
+                    context->working.validIdColor,
+                    L"IDs validos",
+                    true);
+                return TRUE;
+            }
+
+            if (draw->CtlID == IDC_BROKEN_TEXT_COLOR)
+            {
+                DrawColorButton(
+                    *draw,
+                    context->working.brokenTextColor,
+                    L"Caracteres das linhas quebradas",
                     true);
                 return TRUE;
             }
@@ -226,11 +243,19 @@ namespace NppGrandFantasia
         }
     }
 
-    void PipeColorDialog::ChooseBrokenLineColor(HWND dialog, Context& context)
+    void PipeColorDialog::ChooseValidIdColor(HWND dialog, Context& context)
     {
-        if (ShowColorPicker(dialog, context.working.brokenLineBackground))
+        if (ShowColorPicker(dialog, context.working.validIdColor))
         {
-            InvalidateRect(GetDlgItem(dialog, IDC_BROKEN_LINE_COLOR), nullptr, TRUE);
+            InvalidateRect(GetDlgItem(dialog, IDC_VALID_ID_COLOR), nullptr, TRUE);
+        }
+    }
+
+    void PipeColorDialog::ChooseBrokenTextColor(HWND dialog, Context& context)
+    {
+        if (ShowColorPicker(dialog, context.working.brokenTextColor))
+        {
+            InvalidateRect(GetDlgItem(dialog, IDC_BROKEN_TEXT_COLOR), nullptr, TRUE);
         }
     }
 

@@ -17,6 +17,47 @@ namespace NppGrandFantasia
         {
             return std::clamp(value, 1, 4);
         }
+
+        COLORREF ReadColorSetting(
+            const std::wstring& path,
+            const wchar_t* key,
+            COLORREF fallback,
+            const wchar_t* legacyKey = nullptr)
+        {
+            wchar_t buffer[32]{};
+            DWORD copied = GetPrivateProfileStringW(
+                SettingsSection,
+                key,
+                L"",
+                buffer,
+                static_cast<DWORD>(sizeof(buffer) / sizeof(buffer[0])),
+                path.c_str());
+
+            if (copied == 0 && legacyKey != nullptr)
+            {
+                copied = GetPrivateProfileStringW(
+                    SettingsSection,
+                    legacyKey,
+                    L"",
+                    buffer,
+                    static_cast<DWORD>(sizeof(buffer) / sizeof(buffer[0])),
+                    path.c_str());
+            }
+
+            if (copied == 0)
+            {
+                return fallback;
+            }
+
+            wchar_t* end = nullptr;
+            const unsigned long value = std::wcstoul(buffer, &end, 10);
+            if (end == buffer || *end != L'\0')
+            {
+                return fallback;
+            }
+
+            return static_cast<COLORREF>(value & 0x00FFFFFFUL);
+        }
     }
 
     PipeColorSettings DefaultPipeColorSettings()
@@ -74,13 +115,19 @@ namespace NppGrandFantasia
                 path.c_str())) & 0x00FFFFFFUL;
         }
 
-        const UINT brokenLineFallback =
-            static_cast<UINT>(settings.brokenLineBackground & 0x00FFFFFFUL);
-        settings.brokenLineBackground = static_cast<COLORREF>(GetPrivateProfileIntW(
+        const UINT validIdFallback =
+            static_cast<UINT>(settings.validIdColor & 0x00FFFFFFUL);
+        settings.validIdColor = static_cast<COLORREF>(GetPrivateProfileIntW(
             SettingsSection,
-            L"BrokenLineBackground",
-            static_cast<int>(brokenLineFallback),
+            L"ValidIdColor",
+            static_cast<int>(validIdFallback),
             path.c_str())) & 0x00FFFFFFUL;
+
+        settings.brokenTextColor = ReadColorSetting(
+            path,
+            L"BrokenTextColor",
+            settings.brokenTextColor,
+            L"BrokenLineBackground");
 
         return settings;
     }
@@ -107,12 +154,20 @@ namespace NppGrandFantasia
                 path.c_str()) != FALSE && success;
         }
 
-        const std::wstring brokenLineValue = std::to_wstring(
-            static_cast<unsigned long>(settings.brokenLineBackground & 0x00FFFFFFUL));
+        const std::wstring validIdValue = std::to_wstring(
+            static_cast<unsigned long>(settings.validIdColor & 0x00FFFFFFUL));
         success = WritePrivateProfileStringW(
             SettingsSection,
-            L"BrokenLineBackground",
-            brokenLineValue.c_str(),
+            L"ValidIdColor",
+            validIdValue.c_str(),
+            path.c_str()) != FALSE && success;
+
+        const std::wstring brokenTextValue = std::to_wstring(
+            static_cast<unsigned long>(settings.brokenTextColor & 0x00FFFFFFUL));
+        success = WritePrivateProfileStringW(
+            SettingsSection,
+            L"BrokenTextColor",
+            brokenTextValue.c_str(),
             path.c_str()) != FALSE && success;
 
         return success;
