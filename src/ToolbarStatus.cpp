@@ -301,10 +301,24 @@ namespace NppGrandFantasia
 
     void ToolbarStatus::EnsureLayout()
     {
-        Reposition();
-        if (_window != nullptr)
+        if (_window != nullptr && IsWindow(_window) != FALSE)
         {
-            InvalidateRect(_window, nullptr, FALSE);
+            // Mantem a ultima geometria visivel mesmo se a toolbar nativa
+            // estiver em um autosize transitorio durante a sincronizacao.
+            ShowWindow(_window, SW_SHOWNOACTIVATE);
+        }
+
+        Reposition();
+
+        if (_window != nullptr && IsWindow(_window) != FALSE)
+        {
+            // Repinta somente o bloco personalizado e conclui o desenho antes
+            // de devolver o controle ao editor. RDW_NOERASE evita flicker.
+            RedrawWindow(
+                _window,
+                nullptr,
+                nullptr,
+                RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
         }
     }
 

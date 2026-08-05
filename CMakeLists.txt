@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(NppGrandFantasia
-    VERSION 0.8.2
+    VERSION 0.8.3
     DESCRIPTION "Ferramentas de modding do Grand Fantasia para Notepad++"
     LANGUAGES CXX RC
 )

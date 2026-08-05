@@ -1,4 +1,4 @@
-# NppGrandFantasia 0.8.2
+# NppGrandFantasia 0.8.3
 
 Plugin nativo x64 para Notepad++ com ferramentas para trabalhar nos arquivos INI do Grand Fantasia.
 
@@ -95,6 +95,7 @@ O encoding é capturado separadamente para cada `S_` e cada `C_` no momento do v
 - `WM_SETREDRAW` é aplicado somente às views que já estavam visíveis; a sub-view oculta nunca é revelada pela sincronização.
 - Nenhum documento é ativado internamente em uma view oculta.
 - Os Scintillas auxiliares ficam em um host privado invisível, fora do layout da janela principal do Notepad++.
+- Após sincronização automática, Sync manual, dirty state ou salvamento, os dois blocos superiores têm visibilidade, posição e desenho reafirmados imediatamente, sem depender de trocar de aba.
 
 ## Build
 

@@ -750,8 +750,7 @@ namespace NppGrandFantasia
         {
             _mirrorLinkManager->HandleDeferredMirrorSave();
         }
-        _mirrorToolbar.EnsureLayout();
-        _compactToolbar.EnsureLayout();
+        EnsureCompactToolbarsStable();
     }
 
     void ValidatorWindow::HandleFileBeforeClose(UINT_PTR bufferId)
@@ -783,6 +782,14 @@ namespace NppGrandFantasia
         if (_mirrorLinkManager)
         {
             _mirrorLinkManager->HandleBufferActivated();
+        }
+
+        // Notificacoes causadas pela ativacao interna do S_/C_ nao devem
+        // mexer no layout. Em uma ativacao real, apenas reafirmamos os dois
+        // controles existentes, sem destruir ou recriar a barra.
+        if (!IsCapturingMirrorDocuments() && !IsApplyingMirrorUpdate())
+        {
+            EnsureCompactToolbarsStable();
         }
     }
 
@@ -856,6 +863,7 @@ namespace NppGrandFantasia
                 _mirrorLinkManager->HandleDeferredMirrorDirty(
                     static_cast<UINT_PTR>(wParam));
             }
+            EnsureCompactToolbarsStable();
             return TRUE;
         }
 
@@ -975,6 +983,7 @@ namespace NppGrandFantasia
             {
                 _mirrorLinkManager->HandleWorkerResult(std::move(result));
             }
+            EnsureCompactToolbarsStable();
             return TRUE;
         }
 
@@ -1372,6 +1381,7 @@ namespace NppGrandFantasia
                     if (self != nullptr && self->_mirrorLinkManager)
                     {
                         self->_mirrorLinkManager->ManualSync();
+                        self->EnsureCompactToolbarsStable();
                     }
                 },
                 this);
@@ -1395,8 +1405,34 @@ namespace NppGrandFantasia
         dialog.Show(_nppData._nppHandle);
 
         // Reafirma a posicao/z-order dos dois blocos sem recria-los.
-        _mirrorToolbar.EnsureLayout();
-        _compactToolbar.EnsureLayout();
+        EnsureCompactToolbarsStable();
+    }
+
+    void ValidatorWindow::EnsureCompactToolbarsStable()
+    {
+        // O Notepad++ pode executar TB_AUTOSIZE/relayout depois de trocar um
+        // documento internamente para registrar o dirty state ou salvar o C_.
+        // Os controles nao sao recriados: reafirmamos WS_VISIBLE, z-order e a
+        // geometria anterior imediatamente ao terminar a operacao.
+        if (!_compactToolbar.IsCreated())
+        {
+            CreateCompactToolbar();
+        }
+        if (!_mirrorToolbar.IsCreated())
+        {
+            CreateMirrorToolbar();
+        }
+
+        if (_mirrorToolbar.IsCreated())
+        {
+            _compactToolbar.SetRightReservedWidthLogical(
+                _mirrorToolbar.ReservedWidthLogical());
+            _mirrorToolbar.EnsureLayout();
+        }
+        if (_compactToolbar.IsCreated())
+        {
+            _compactToolbar.EnsureLayout();
+        }
     }
 
     void ValidatorWindow::SetCompactToolbarMessage(

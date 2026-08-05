@@ -111,6 +111,7 @@ namespace NppGrandFantasia
         void CreateCompactToolbar();
         void CreateMirrorToolbar();
         void OpenMirrorLinkDialog();
+        void EnsureCompactToolbarsStable();
         void SetCompactToolbarMessage(const std::wstring& text, bool active, bool hasError);
 
         void AllocateEditorVisuals();
