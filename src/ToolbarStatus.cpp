@@ -237,7 +237,8 @@ namespace NppGrandFantasia
         if (_window != nullptr)
         {
             SetWindowTextW(_window, _text.c_str());
-            Reposition();
+            // O conteudo muda em tempo real; o retangulo do controle nao.
+            // Evita SetWindowPos a cada validacao/digitacao.
             InvalidateRect(_window, nullptr, TRUE);
             UpdateTooltipText();
         }
@@ -269,7 +270,7 @@ namespace NppGrandFantasia
         if (_window != nullptr)
         {
             SetWindowTextW(_window, _text.c_str());
-            Reposition();
+            // A lista muda em tempo real, mas o layout permanece estavel.
             InvalidateRect(_window, nullptr, TRUE);
             UpdateTooltipText();
         }
@@ -284,11 +285,26 @@ namespace NppGrandFantasia
         }
     }
 
+    void ToolbarStatus::SetRightReservedWidthLogical(int logicalPixels)
+    {
+        _rightReservedWidthLogical = std::max(0, logicalPixels);
+        Reposition();
+    }
+
     void ToolbarStatus::ApplyTheme()
     {
         if (_window != nullptr)
         {
             InvalidateRect(_window, nullptr, TRUE);
+        }
+    }
+
+    void ToolbarStatus::EnsureLayout()
+    {
+        Reposition();
+        if (_window != nullptr)
+        {
+            InvalidateRect(_window, nullptr, FALSE);
         }
     }
 
@@ -493,7 +509,9 @@ namespace NppGrandFantasia
         const int toolbarHeight = client.bottom - client.top;
         if (toolbarWidth <= 0 || toolbarHeight <= 0)
         {
-            ShowWindow(_window, SW_HIDE);
+            // O toolbar nativo pode passar brevemente por tamanho zero durante
+            // save/theme/autosize. Nao escondemos o controle nesse estado
+            // transitorio, pois ele poderia permanecer oculto sem novo WM_SIZE.
             return;
         }
 
@@ -517,14 +535,18 @@ namespace NppGrandFantasia
         const int minimumWidth = Scale(180);
         const int desiredWidth = Scale(320);
         const int desiredHeight = std::min(Scale(22), std::max(1, toolbarHeight - Scale(2)));
-        const int right = toolbarWidth - sidePadding;
+        const int right = toolbarWidth - sidePadding - Scale(_rightReservedWidthLogical);
         const int minimumLeft = lastButtonRight + buttonGap;
         const int availableWidth = right - minimumLeft;
 
         if (availableWidth < minimumWidth)
         {
-            ShowWindow(_window, SW_HIDE);
-            return;
+            // Preserve o ultimo layout em geometrias transitorias. Quando houver
+            // algum espaco real, reduzimos de forma controlada sem desaparecer.
+            if (availableWidth < Scale(96))
+            {
+                return;
+            }
         }
 
         const int width = std::min(desiredWidth, availableWidth);

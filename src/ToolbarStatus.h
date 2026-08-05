@@ -41,7 +41,9 @@ namespace NppGrandFantasia
         void SetErrorLines(std::vector<ToolbarErrorLink> errorLines, bool validationActive);
 
         void SetErrorColor(COLORREF color);
+        void SetRightReservedWidthLogical(int logicalPixels);
         void ApplyTheme();
+        void EnsureLayout();
         bool IsCreated() const;
 
     private:
@@ -94,5 +96,6 @@ namespace NppGrandFantasia
         bool _mouseTracking = false;
         int _hoveredError = -1;
         COLORREF _errorColor = RGB(255, 70, 70);
+        int _rightReservedWidthLogical = 0;
     };
 }

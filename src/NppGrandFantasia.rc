@@ -36,9 +36,22 @@ BEGIN
     PUSHBUTTON      "Cancelar", IDCANCEL, 170, 164, 52, 19
 END
 
+
+IDD_MIRROR_LINKS DIALOGEX 0, 0, 276, 118
+STYLE DS_SETFONT | DS_SHELLFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_TOOLWINDOW
+CAPTION "Vinculos de arquivos espelhados"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT           "Sincronizacao unidirecional", IDC_STATIC, 8, 7, 150, 10
+    LTEXT           "Marque os pares abertos que devem copiar S_ para C_.", IDC_STATIC, 8, 18, 260, 10
+    CONTROL         "", IDC_MIRROR_PAIR_LIST, "SysListView32", WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_NOSORTHEADER, 7, 31, 262, 63
+    LTEXT           "Nenhum vinculo ativo.", IDC_MIRROR_STATUS, 8, 100, 260, 12, SS_LEFT | SS_ENDELLIPSIS
+END
+
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,6,0,0
- PRODUCTVERSION 0,6,0,0
+ FILEVERSION 0,8,2,0
+ PRODUCTVERSION 0,8,2,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -55,11 +68,11 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "ShadowGarden\0"
             VALUE "FileDescription", "NppGrandFantasia - ferramentas para Grand Fantasia\0"
-            VALUE "FileVersion", "0.6.0\0"
+            VALUE "FileVersion", "0.8.2\0"
             VALUE "InternalName", "NppGrandFantasia\0"
             VALUE "OriginalFilename", "NppGrandFantasia.dll\0"
             VALUE "ProductName", "NppGrandFantasia\0"
-            VALUE "ProductVersion", "0.6.0\0"
+            VALUE "ProductVersion", "0.8.2\0"
         END
     END
     BLOCK "VarFileInfo"

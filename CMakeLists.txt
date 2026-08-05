@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(NppGrandFantasia
-    VERSION 0.6.0
+    VERSION 0.8.2
     DESCRIPTION "Ferramentas de modding do Grand Fantasia para Notepad++"
     LANGUAGES CXX RC
 )
@@ -19,6 +19,9 @@ add_library(NppGrandFantasia SHARED
     src/PipeColorSettings.cpp
     src/PipeColorDialog.cpp
     src/ToolbarStatus.cpp
+    src/MirrorToolbar.cpp
+    src/MirrorLinkDialog.cpp
+    src/MirrorLinkManager.cpp
     src/ValidatorWindow.cpp
     src/NppGrandFantasia.rc
 )
@@ -47,6 +50,11 @@ target_link_libraries(NppGrandFantasia PRIVATE
 set_target_properties(NppGrandFantasia PROPERTIES
     PREFIX ""
     OUTPUT_NAME "NppGrandFantasia"
+    PDB_NAME "NppGrandFantasia"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+    LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
+    PDB_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release"
 )
 
 if (MSVC)
@@ -57,18 +65,10 @@ if (MSVC)
         /utf-8
         /MP
     )
-    target_link_options(NppGrandFantasia PRIVATE /INCREMENTAL:NO)
+    target_link_options(NppGrandFantasia PRIVATE /INCREMENTAL:NO /DEBUG:FULL)
 endif()
 
-# Gera tambem uma estrutura pronta para copiar para a pasta plugins do Notepad++.
-add_custom_command(TARGET NppGrandFantasia POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-        "$<TARGET_FILE_DIR:NppGrandFantasia>/plugin/NppGrandFantasia"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:NppGrandFantasia>"
-        "$<TARGET_FILE_DIR:NppGrandFantasia>/plugin/NppGrandFantasia/NppGrandFantasia.dll"
-    COMMENT "Criando pasta de instalacao do plugin"
-)
+# A DLL e gerada somente uma vez em build/<configuracao>.
 
 if (NPPGF_BUILD_TESTS)
     enable_testing()

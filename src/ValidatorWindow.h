@@ -2,6 +2,8 @@
 
 #include "PipeColorSettings.h"
 #include "PipeValidator.h"
+#include "MirrorLinkManager.h"
+#include "MirrorToolbar.h"
 #include "ToolbarStatus.h"
 #include "npp/Docking.h"
 #include "npp/PluginInterface.h"
@@ -78,6 +80,19 @@ namespace NppGrandFantasia
         void ApplyDarkMode(bool initial);
         void RefreshVisiblePipeColors(bool clearDocument = false);
         void UpdateCompactStatus();
+        void HandleFileBeforeSave(UINT_PTR bufferId);
+        void HandleFileSaved(UINT_PTR bufferId);
+        void HandleDeferredMirrorSave();
+        void HandleFileBeforeClose(UINT_PTR bufferId);
+        void HandleFileClosed(UINT_PTR bufferId);
+        void HandleFilePathChanged(UINT_PTR bufferId, const wchar_t* reason);
+        void HandleBufferActivated();
+        void HandleReadOnlyChanged(UINT_PTR bufferId);
+        void HandleGlobalModified(UINT_PTR bufferId);
+        void HandleScintillaModified(UINT_PTR bufferId);
+        void HandleReadOnlyModifyAttempt(UINT_PTR bufferId);
+        bool IsApplyingMirrorUpdate() const;
+        bool IsCapturingMirrorDocuments() const;
 
         static INT_PTR CALLBACK DialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -94,6 +109,8 @@ namespace NppGrandFantasia
         void NavigateToLine(std::size_t oneBasedLine);
         void OpenPipeColorDialog();
         void CreateCompactToolbar();
+        void CreateMirrorToolbar();
+        void OpenMirrorLinkDialog();
         void SetCompactToolbarMessage(const std::wstring& text, bool active, bool hasError);
 
         void AllocateEditorVisuals();
@@ -133,6 +150,8 @@ namespace NppGrandFantasia
         bool _currentValidationActive = false;
         PipeValidationResult _currentResult{};
         ToolbarStatus _compactToolbar{};
+        MirrorToolbar _mirrorToolbar{};
+        std::unique_ptr<MirrorLinkManager> _mirrorLinkManager;
         PipeColorSettings _pipeColorSettings{};
         bool _settingsLoaded = false;
         int _taggedTextIndicator = -1;

@@ -2,6 +2,7 @@
 
 #include "PipeColorDialog.h"
 #include "GrandFantasiaTextColors.h"
+#include "MirrorLinkDialog.h"
 #include "resource.h"
 
 #include <algorithm>
@@ -330,7 +331,24 @@ namespace NppGrandFantasia
         }
 
         CreateCompactToolbar();
-        UpdateMenuCheck(IsVisible());
+        CreateMirrorToolbar();
+        if (!_mirrorLinkManager)
+        {
+            _mirrorLinkManager = std::make_unique<MirrorLinkManager>(
+                _nppData,
+                _dialog,
+                &_mirrorToolbar);
+            _mirrorLinkManager->Initialize();
+        }
+
+        // O painel completo inicia oculto. Os dois blocos compactos da barra
+        // permanecem visiveis e ativos durante toda a sessao.
+        SendMessageW(
+            _nppData._nppHandle,
+            NPPM_DMMHIDE,
+            0,
+            reinterpret_cast<LPARAM>(_dialog));
+        UpdateMenuCheck(false);
         return true;
     }
 
@@ -342,6 +360,14 @@ namespace NppGrandFantasia
         }
 
         KillTimer(_dialog, ValidationTimerId);
+        KillTimer(_dialog, MirrorSyncTimerId);
+
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->Shutdown();
+            _mirrorLinkManager.reset();
+        }
+        _mirrorToolbar.Destroy();
         _compactToolbar.Destroy();
 
         if (_worker)
@@ -359,6 +385,15 @@ namespace NppGrandFantasia
             PM_REMOVE))
         {
             delete reinterpret_cast<ValidationWorkerResult*>(pendingMessage.lParam);
+        }
+        while (PeekMessageW(
+            &pendingMessage,
+            _dialog,
+            MirrorSyncResultMessage,
+            MirrorSyncResultMessage,
+            PM_REMOVE))
+        {
+            delete reinterpret_cast<MirrorSyncWorkerResult*>(pendingMessage.lParam);
         }
 
         if (_modelessRegistered)
@@ -464,6 +499,14 @@ namespace NppGrandFantasia
         // Paineis registrados no Docking Manager recebem o tema do Notepad++
         // automaticamente. Aqui atualizamos apenas os elementos proprios.
         _compactToolbar.ApplyTheme();
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->ApplyTheme();
+        }
+        else
+        {
+            _mirrorToolbar.ApplyTheme();
+        }
 
         if (!initial)
         {
@@ -685,6 +728,106 @@ namespace NppGrandFantasia
         _compactToolbar.SetErrorLines(std::move(errorLines), true);
     }
 
+    void ValidatorWindow::HandleFileBeforeSave(UINT_PTR bufferId)
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->HandleBeforeSave(bufferId);
+        }
+    }
+
+    void ValidatorWindow::HandleFileSaved(UINT_PTR bufferId)
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->HandleFileSaved(bufferId);
+        }
+    }
+
+    void ValidatorWindow::HandleDeferredMirrorSave()
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->HandleDeferredMirrorSave();
+        }
+        _mirrorToolbar.EnsureLayout();
+        _compactToolbar.EnsureLayout();
+    }
+
+    void ValidatorWindow::HandleFileBeforeClose(UINT_PTR bufferId)
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->HandleFileBeforeClose(bufferId);
+        }
+    }
+
+    void ValidatorWindow::HandleFileClosed(UINT_PTR bufferId)
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->HandleFileClosed(bufferId);
+        }
+    }
+
+    void ValidatorWindow::HandleFilePathChanged(UINT_PTR bufferId, const wchar_t* reason)
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->HandleFilePathChanged(bufferId, reason);
+        }
+    }
+
+    void ValidatorWindow::HandleBufferActivated()
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->HandleBufferActivated();
+        }
+    }
+
+    void ValidatorWindow::HandleReadOnlyChanged(UINT_PTR bufferId)
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->HandleReadOnlyChanged(bufferId);
+        }
+    }
+
+    void ValidatorWindow::HandleGlobalModified(UINT_PTR bufferId)
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->ScheduleFromModification(bufferId);
+        }
+    }
+
+    void ValidatorWindow::HandleScintillaModified(UINT_PTR bufferId)
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->ScheduleFromModification(bufferId);
+        }
+    }
+
+    void ValidatorWindow::HandleReadOnlyModifyAttempt(UINT_PTR bufferId)
+    {
+        if (_mirrorLinkManager)
+        {
+            _mirrorLinkManager->HandleReadOnlyModifyAttempt(bufferId);
+        }
+    }
+
+    bool ValidatorWindow::IsApplyingMirrorUpdate() const
+    {
+        return _mirrorLinkManager && _mirrorLinkManager->IsApplyingMirrorUpdate();
+    }
+
+    bool ValidatorWindow::IsCapturingMirrorDocuments() const
+    {
+        return _mirrorLinkManager && _mirrorLinkManager->IsCapturingDocuments();
+    }
+
     INT_PTR CALLBACK ValidatorWindow::DialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
     {
         ValidatorWindow* self = reinterpret_cast<ValidatorWindow*>(GetWindowLongPtrW(dialog, DWLP_USER));
@@ -701,6 +844,21 @@ namespace NppGrandFantasia
 
     INT_PTR ValidatorWindow::HandleMessage(UINT message, WPARAM wParam, LPARAM lParam)
     {
+        if (message == MirrorDeferredSaveMessage)
+        {
+            HandleDeferredMirrorSave();
+            return TRUE;
+        }
+        if (message == MirrorDeferredDirtyMessage)
+        {
+            if (_mirrorLinkManager)
+            {
+                _mirrorLinkManager->HandleDeferredMirrorDirty(
+                    static_cast<UINT_PTR>(wParam));
+            }
+            return TRUE;
+        }
+
         switch (message)
         {
         case WM_INITDIALOG:
@@ -724,6 +882,11 @@ namespace NppGrandFantasia
             {
                 KillTimer(_dialog, ValidationTimerId);
                 StartValidation();
+                return TRUE;
+            }
+            if (wParam == MirrorSyncTimerId && _mirrorLinkManager)
+            {
+                _mirrorLinkManager->HandleTimer(static_cast<UINT_PTR>(wParam));
                 return TRUE;
             }
             break;
@@ -800,6 +963,17 @@ namespace NppGrandFantasia
                 result->bufferId == GetCurrentBufferId())
             {
                 DisplayResult(*result);
+            }
+            return TRUE;
+        }
+
+        case MirrorSyncResultMessage:
+        {
+            std::unique_ptr<MirrorSyncWorkerResult> result(
+                reinterpret_cast<MirrorSyncWorkerResult*>(lParam));
+            if (_mirrorLinkManager)
+            {
+                _mirrorLinkManager->HandleWorkerResult(std::move(result));
             }
             return TRUE;
         }
@@ -1175,6 +1349,54 @@ namespace NppGrandFantasia
             _compactToolbar.SetErrorColor(_pipeColorSettings.brokenTextColor);
             UpdateCompactStatus();
         }
+    }
+
+    void ValidatorWindow::CreateMirrorToolbar()
+    {
+        if (!_mirrorToolbar.IsCreated())
+        {
+            _mirrorToolbar.Create(
+                _instance,
+                _nppData._nppHandle,
+                [](void* context)
+                {
+                    auto* self = static_cast<ValidatorWindow*>(context);
+                    if (self != nullptr && self->_mirrorLinkManager)
+                    {
+                        self->OpenMirrorLinkDialog();
+                    }
+                },
+                [](void* context)
+                {
+                    auto* self = static_cast<ValidatorWindow*>(context);
+                    if (self != nullptr && self->_mirrorLinkManager)
+                    {
+                        self->_mirrorLinkManager->ManualSync();
+                    }
+                },
+                this);
+        }
+
+        if (_mirrorToolbar.IsCreated())
+        {
+            _compactToolbar.SetRightReservedWidthLogical(
+                _mirrorToolbar.ReservedWidthLogical());
+        }
+    }
+
+    void ValidatorWindow::OpenMirrorLinkDialog()
+    {
+        if (!_mirrorLinkManager)
+        {
+            return;
+        }
+
+        MirrorLinkDialog dialog(_instance, _nppData, *_mirrorLinkManager);
+        dialog.Show(_nppData._nppHandle);
+
+        // Reafirma a posicao/z-order dos dois blocos sem recria-los.
+        _mirrorToolbar.EnsureLayout();
+        _compactToolbar.EnsureLayout();
     }
 
     void ValidatorWindow::SetCompactToolbarMessage(
