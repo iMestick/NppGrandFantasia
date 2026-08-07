@@ -1,4 +1,5 @@
 #include "ValidatorWindow.h"
+#include "TranslationTabLabels.h"
 #include "npp/PluginInterface.h"
 
 #include <cwchar>
@@ -14,6 +15,7 @@ namespace
     FuncItem g_commands[CommandCount]{};
     ShortcutKey g_toggleShortcut{true, false, false, static_cast<UCHAR>('Q')};
     std::unique_ptr<NppGrandFantasia::ValidatorWindow> g_validatorWindow;
+    std::unique_ptr<NppGrandFantasia::TranslationTabLabels> g_translationTabLabels;
 
     void TogglePipeValidator()
     {
@@ -83,6 +85,11 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification* notifyCode)
     switch (notifyCode->nmhdr.code)
     {
     case NPPN_READY:
+        if (!g_translationTabLabels)
+        {
+            g_translationTabLabels = std::make_unique<NppGrandFantasia::TranslationTabLabels>(g_nppData);
+        }
+
         if (!g_validatorWindow)
         {
             g_validatorWindow = std::make_unique<NppGrandFantasia::ValidatorWindow>(
@@ -93,6 +100,10 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification* notifyCode)
             {
                 g_validatorWindow->ScheduleValidation(true);
             }
+        }
+        if (g_translationTabLabels)
+        {
+            g_translationTabLabels->Refresh();
         }
         break;
 
@@ -111,6 +122,10 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification* notifyCode)
                 static_cast<UINT_PTR>(notifyCode->nmhdr.idFrom));
             g_validatorWindow->ScheduleValidation(true);
         }
+        if (g_translationTabLabels)
+        {
+            g_translationTabLabels->Refresh();
+        }
         break;
 
     case NPPN_FILEBEFORECLOSE:
@@ -128,6 +143,10 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification* notifyCode)
                 static_cast<UINT_PTR>(notifyCode->nmhdr.idFrom));
             g_validatorWindow->ScheduleValidation(true);
         }
+        if (g_translationTabLabels)
+        {
+            g_translationTabLabels->Refresh();
+        }
         break;
 
     case NPPN_FILEBEFORERENAME:
@@ -138,6 +157,10 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification* notifyCode)
                 static_cast<UINT_PTR>(notifyCode->nmhdr.idFrom),
                 L"Um dos arquivos vinculados foi renomeado. O vinculo foi removido.");
         }
+        if (notifyCode->nmhdr.code == NPPN_FILERENAMED && g_translationTabLabels)
+        {
+            g_translationTabLabels->Refresh();
+        }
         break;
 
     case NPPN_FILEBEFOREDELETE:
@@ -147,6 +170,10 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification* notifyCode)
             g_validatorWindow->HandleFilePathChanged(
                 static_cast<UINT_PTR>(notifyCode->nmhdr.idFrom),
                 L"Um dos arquivos vinculados foi removido. O vinculo foi encerrado.");
+        }
+        if (notifyCode->nmhdr.code == NPPN_FILEDELETED && g_translationTabLabels)
+        {
+            g_translationTabLabels->Refresh();
         }
         break;
 
@@ -168,12 +195,27 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification* notifyCode)
                 g_validatorWindow->ScheduleValidation(true);
             }
         }
+        if (g_translationTabLabels)
+        {
+            g_translationTabLabels->Refresh();
+        }
         break;
 
     case NPPN_FILEOPENED:
         if (g_validatorWindow)
         {
             g_validatorWindow->ScheduleValidation(true);
+        }
+        if (g_translationTabLabels)
+        {
+            g_translationTabLabels->Refresh();
+        }
+        break;
+
+    case NPPN_DOCORDERCHANGED:
+        if (g_translationTabLabels)
+        {
+            g_translationTabLabels->Refresh();
         }
         break;
 
@@ -245,6 +287,7 @@ extern "C" __declspec(dllexport) void beNotified(SCNotification* notifyCode)
         break;
 
     case NPPN_SHUTDOWN:
+        g_translationTabLabels.reset();
         if (g_validatorWindow)
         {
             g_validatorWindow->Destroy();

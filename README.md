@@ -1,4 +1,4 @@
-# NppGrandFantasia 0.8.3
+# NppGrandFantasia 0.8.4
 
 Plugin nativo x64 para Notepad++ com ferramentas para trabalhar nos arquivos INI do Grand Fantasia.
 
@@ -12,6 +12,22 @@ Plugin nativo x64 para Notepad++ com ferramentas para trabalhar nos arquivos INI
 - Painel completo pelo atalho `Ctrl+Q`, configurável no Shortcut Mapper.
 - Indicadores compactos na barra superior do Notepad++.
 - Vinculação e sincronização segura de arquivos espelhados `S_ -> C_`.
+- Identificação automática do idioma nas abas de `T_*.ini` (`[PT]`, `[EN]`, `[ES]`, `[FR]`, etc.) conforme a pasta `Translate_<IDIOMA>`.
+
+## Idioma nas abas de tradução
+
+Arquivos `T_*.ini` abertos diretamente dentro de uma pasta `Translate_<IDIOMA>` recebem uma identificação visual na aba, sem renomear o arquivo no disco.
+
+Exemplos:
+
+```text
+Translate_PT\T_Enchant.ini  ->  T_Enchant.ini [PT]
+Translate_EN\T_Enchant.ini  ->  T_Enchant.ini [EN]
+Translate_ES\T_Enchant.ini  ->  T_Enchant.ini [ES]
+Translate_FR\T_Enchant.ini  ->  T_Enchant.ini [FR]
+```
+
+A atualização cobre as duas views do Notepad++, arquivos clonados e mudanças de ordem das abas. Arquivos que não começam com `T_`, não terminam em `.ini` ou não estão em uma pasta `Translate_<IDIOMA>` não são alterados.
 
 ## Vínculos S_ -> C_
 
