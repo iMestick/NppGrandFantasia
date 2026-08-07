@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(NppGrandFantasia
-    VERSION 0.8.4
+    VERSION 0.8.5
     DESCRIPTION "Ferramentas de modding do Grand Fantasia para Notepad++"
     LANGUAGES CXX RC
 )
@@ -20,6 +20,7 @@ add_library(NppGrandFantasia SHARED
     src/PipeColorDialog.cpp
     src/ToolbarStatus.cpp
     src/MirrorToolbar.cpp
+    src/FlagToolWindow.cpp
     src/MirrorLinkDialog.cpp
     src/MirrorLinkManager.cpp
     src/TranslationTabLabels.cpp

@@ -1,4 +1,4 @@
-# NppGrandFantasia 0.8.4
+# NppGrandFantasia 0.8.5
 
 Plugin nativo x64 para Notepad++ com ferramentas para trabalhar nos arquivos INI do Grand Fantasia.
 
@@ -160,3 +160,11 @@ As operações de vínculo, encoding, sincronização e salvamento são registra
 ```text
 NppGrandFantasia_mirror.log
 ```
+
+
+## FlagTool integrado
+
+- O bloco de vinculo da toolbar agora possui o botao `FlagTool` ao lado de `Vincular`.
+- A interface foi reimplementada integralmente em C++/Win32, sem dependencia de Python.
+- Mantem a ordem da ferramenta original: Item, Item Plus, Class, Enchant, Spell Op Flag, Spell Restrict Equip, Mission e Monster Special Flag.
+- Inclui Check, Copy, Mark All e Clear All, com valores decimais e hexadecimal para Class.

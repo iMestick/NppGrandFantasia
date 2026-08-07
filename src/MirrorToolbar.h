@@ -19,6 +19,7 @@ namespace NppGrandFantasia
     public:
         using LinkCallback = void (*)(void* context);
         using SyncCallback = void (*)(void* context);
+        using FlagToolCallback = void (*)(void* context);
 
         MirrorToolbar() = default;
         ~MirrorToolbar();
@@ -31,6 +32,7 @@ namespace NppGrandFantasia
             HWND notepadHandle,
             LinkCallback linkCallback,
             SyncCallback syncCallback,
+            FlagToolCallback flagToolCallback,
             void* callbackContext);
         void Destroy();
         void SetState(MirrorToolbarState state, std::wstring tooltipText = {});
@@ -56,6 +58,7 @@ namespace NppGrandFantasia
         void UpdateTooltip();
         int Scale(int value) const;
         bool PointInSyncButton(POINT point) const;
+        bool PointInFlagToolButton(POINT point) const;
 
         HINSTANCE _instance = nullptr;
         HWND _notepadHandle = nullptr;
@@ -64,12 +67,15 @@ namespace NppGrandFantasia
         HWND _tooltip = nullptr;
         LinkCallback _linkCallback = nullptr;
         SyncCallback _syncCallback = nullptr;
+        FlagToolCallback _flagToolCallback = nullptr;
         void* _callbackContext = nullptr;
         MirrorToolbarState _state = MirrorToolbarState::Unlinked;
-        std::wstring _tooltipText = L"Clique em Vincular para associar o S_ ao C_ correspondente.";
+        std::wstring _tooltipText = L"Vincule S_ ao C_, abra o FlagTool ou sincronize os arquivos vinculados.";
         RECT _syncButton{};
+        RECT _flagToolButton{};
         bool _hoverLink = false;
         bool _hoverSync = false;
+        bool _hoverFlagTool = false;
         bool _mouseTracking = false;
     };
 }

@@ -72,6 +72,7 @@ namespace NppGrandFantasia
         HWND notepadHandle,
         LinkCallback linkCallback,
         SyncCallback syncCallback,
+        FlagToolCallback flagToolCallback,
         void* callbackContext)
     {
         if (_window != nullptr)
@@ -83,6 +84,7 @@ namespace NppGrandFantasia
         _notepadHandle = notepadHandle;
         _linkCallback = linkCallback;
         _syncCallback = syncCallback;
+        _flagToolCallback = flagToolCallback;
         _callbackContext = callbackContext;
 
         WNDCLASSEXW windowClass{};
@@ -111,7 +113,7 @@ namespace NppGrandFantasia
             WS_CHILD | WS_CLIPSIBLINGS | WS_TABSTOP,
             0,
             0,
-            Scale(132),
+            Scale(204),
             Scale(22),
             _toolbar,
             nullptr,
@@ -191,6 +193,7 @@ namespace NppGrandFantasia
         _notepadHandle = nullptr;
         _linkCallback = nullptr;
         _syncCallback = nullptr;
+        _flagToolCallback = nullptr;
         _callbackContext = nullptr;
     }
 
@@ -250,7 +253,7 @@ namespace NppGrandFantasia
 
     int MirrorToolbar::ReservedWidthLogical() const
     {
-        return 138;
+        return 210;
     }
 
     LRESULT CALLBACK MirrorToolbar::WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
@@ -333,6 +336,13 @@ namespace NppGrandFantasia
                     }
                 }
             }
+            else if (PointInFlagToolButton(point))
+            {
+                if (_flagToolCallback != nullptr)
+                {
+                    _flagToolCallback(_callbackContext);
+                }
+            }
             else if (_linkCallback != nullptr && _state != MirrorToolbarState::Syncing)
             {
                 _linkCallback(_callbackContext);
@@ -352,10 +362,14 @@ namespace NppGrandFantasia
             }
             const POINT point{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
             const bool newHoverSync = PointInSyncButton(point);
-            const bool newHoverLink = !newHoverSync;
-            if (_hoverSync != newHoverSync || _hoverLink != newHoverLink)
+            const bool newHoverFlagTool = !newHoverSync && PointInFlagToolButton(point);
+            const bool newHoverLink = !newHoverSync && !newHoverFlagTool;
+            if (_hoverSync != newHoverSync ||
+                _hoverFlagTool != newHoverFlagTool ||
+                _hoverLink != newHoverLink)
             {
                 _hoverSync = newHoverSync;
+                _hoverFlagTool = newHoverFlagTool;
                 _hoverLink = newHoverLink;
                 InvalidateRect(_window, nullptr, FALSE);
             }
@@ -365,6 +379,7 @@ namespace NppGrandFantasia
             _mouseTracking = false;
             _hoverLink = false;
             _hoverSync = false;
+            _hoverFlagTool = false;
             InvalidateRect(_window, nullptr, FALSE);
             return 0;
         case WM_SETCURSOR:
@@ -412,7 +427,7 @@ namespace NppGrandFantasia
         GetClientRect(_toolbar, &client);
         const int toolbarWidth = client.right - client.left;
         const int toolbarHeight = client.bottom - client.top;
-        const int width = Scale(132);
+        const int width = Scale(204);
         const int height = std::min(Scale(22), std::max(1, toolbarHeight - Scale(2)));
         const int left = toolbarWidth - Scale(4) - width;
         if (toolbarWidth <= 0 || toolbarHeight <= 0 || left < Scale(8))
@@ -465,15 +480,32 @@ namespace NppGrandFantasia
 
         _syncButton = clientRect;
         _syncButton.left = clientRect.right - Scale(42);
-        RECT divider = clientRect;
-        divider.left = _syncButton.left;
-        divider.right = divider.left + 1;
-        FillRect(dc, &divider, reinterpret_cast<HBRUSH>(GetStockObject(GRAY_BRUSH)));
+        _flagToolButton = clientRect;
+        _flagToolButton.left = _syncButton.left - Scale(70);
+        _flagToolButton.right = _syncButton.left;
+
+        RECT flagDivider = clientRect;
+        flagDivider.left = _flagToolButton.left;
+        flagDivider.right = flagDivider.left + 1;
+        FillRect(dc, &flagDivider, reinterpret_cast<HBRUSH>(GetStockObject(GRAY_BRUSH)));
+
+        RECT syncDivider = clientRect;
+        syncDivider.left = _syncButton.left;
+        syncDivider.right = syncDivider.left + 1;
+        FillRect(dc, &syncDivider, reinterpret_cast<HBRUSH>(GetStockObject(GRAY_BRUSH)));
 
         if (_hoverLink && _state != MirrorToolbarState::Syncing)
         {
             RECT hover = clientRect;
-            hover.right = _syncButton.left;
+            hover.right = _flagToolButton.left;
+            InflateRect(&hover, -1, -1);
+            HBRUSH hotBrush = CreateSolidBrush(hot);
+            FillRect(dc, &hover, hotBrush);
+            DeleteObject(hotBrush);
+        }
+        if (_hoverFlagTool)
+        {
+            RECT hover = _flagToolButton;
             InflateRect(&hover, -1, -1);
             HBRUSH hotBrush = CreateSolidBrush(hot);
             FillRect(dc, &hover, hotBrush);
@@ -530,9 +562,12 @@ namespace NppGrandFantasia
         HGDIOBJ oldFont = SelectObject(dc, font);
         RECT linkRect = clientRect;
         linkRect.left = Scale(19);
-        linkRect.right = _syncButton.left - Scale(3);
+        linkRect.right = _flagToolButton.left - Scale(3);
         SetTextColor(dc, _state == MirrorToolbarState::Syncing ? muted : text);
         DrawTextW(dc, linkText, -1, &linkRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
+
+        SetTextColor(dc, text);
+        DrawTextW(dc, L"FlagTool", -1, &_flagToolButton, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 
         SetTextColor(dc,
             (_state == MirrorToolbarState::Linked || _state == MirrorToolbarState::Error) ? text : muted);
@@ -572,5 +607,10 @@ namespace NppGrandFantasia
     bool MirrorToolbar::PointInSyncButton(POINT point) const
     {
         return PtInRect(&_syncButton, point) != FALSE;
+    }
+
+    bool MirrorToolbar::PointInFlagToolButton(POINT point) const
+    {
+        return PtInRect(&_flagToolButton, point) != FALSE;
     }
 }

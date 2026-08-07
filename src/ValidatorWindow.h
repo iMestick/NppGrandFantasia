@@ -4,6 +4,7 @@
 #include "PipeValidator.h"
 #include "MirrorLinkManager.h"
 #include "MirrorToolbar.h"
+#include "FlagToolWindow.h"
 #include "ToolbarStatus.h"
 #include "npp/Docking.h"
 #include "npp/PluginInterface.h"
@@ -111,6 +112,7 @@ namespace NppGrandFantasia
         void CreateCompactToolbar();
         void CreateMirrorToolbar();
         void OpenMirrorLinkDialog();
+        void OpenFlagTool();
         void EnsureCompactToolbarsStable();
         void SetCompactToolbarMessage(const std::wstring& text, bool active, bool hasError);
 
@@ -152,6 +154,7 @@ namespace NppGrandFantasia
         PipeValidationResult _currentResult{};
         ToolbarStatus _compactToolbar{};
         MirrorToolbar _mirrorToolbar{};
+        FlagToolWindow _flagToolWindow{};
         std::unique_ptr<MirrorLinkManager> _mirrorLinkManager;
         PipeColorSettings _pipeColorSettings{};
         bool _settingsLoaded = false;

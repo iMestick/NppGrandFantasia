@@ -367,6 +367,7 @@ namespace NppGrandFantasia
             _mirrorLinkManager->Shutdown();
             _mirrorLinkManager.reset();
         }
+        _flagToolWindow.Destroy();
         _mirrorToolbar.Destroy();
         _compactToolbar.Destroy();
 
@@ -1384,6 +1385,14 @@ namespace NppGrandFantasia
                         self->EnsureCompactToolbarsStable();
                     }
                 },
+                [](void* context)
+                {
+                    auto* self = static_cast<ValidatorWindow*>(context);
+                    if (self != nullptr)
+                    {
+                        self->OpenFlagTool();
+                    }
+                },
                 this);
         }
 
@@ -1405,6 +1414,21 @@ namespace NppGrandFantasia
         dialog.Show(_nppData._nppHandle);
 
         // Reafirma a posicao/z-order dos dois blocos sem recria-los.
+        EnsureCompactToolbarsStable();
+    }
+
+    void ValidatorWindow::OpenFlagTool()
+    {
+        if (!_flagToolWindow.Show(_instance, _nppData._nppHandle))
+        {
+            MessageBoxW(
+                _nppData._nppHandle,
+                L"Nao foi possivel abrir o FlagTool.",
+                L"NppGrandFantasia",
+                MB_OK | MB_ICONERROR);
+        }
+
+        // Abrir uma janela auxiliar nao deve alterar nem recriar os blocos da toolbar.
         EnsureCompactToolbarsStable();
     }
 
